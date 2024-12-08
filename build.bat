@@ -1,1 +1,0 @@
-docker run --rm -it -v E:\RS41_APRS:/usr/local/src/RS41ng rs41ng_compiler
