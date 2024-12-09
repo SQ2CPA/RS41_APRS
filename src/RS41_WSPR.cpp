@@ -17,11 +17,11 @@ uint32_t lastBeaconTx = 0;
 
 void setup()
 {
-    Serial1.begin(9600);
+    // Serial1.begin(9600); // DEBUG ONLY
 
     pinMode(GPS_EN, OUTPUT);
 
-    digitalWrite(GPS_EN, HIGH);
+    digitalWrite(GPS_EN, LOW);
 
     RADIO::setup();
 
@@ -36,6 +36,26 @@ double latitude = 0, longitude = 0;
 String comment = "";
 
 int outputPowerFrames = 0;
+
+bool hasFix = false;
+uint32_t timeToFixFrom = millis();
+int timeToFix = -1;
+
+void turnOnGPS()
+{
+    digitalWrite(GPS_EN, HIGH);
+    Serial1.begin(9600);
+
+    hasFix = false;
+    timeToFixFrom = millis();
+    timeToFix = -1;
+}
+
+void turnOffGPS()
+{
+    Serial1.end();
+    digitalWrite(GPS_EN, LOW);
+}
 
 void loop()
 {
@@ -74,8 +94,16 @@ void loop()
             }
         }
     }
+    else if (!hasFix)
+    {
+        hasFix = true;
+        timeToFix = (millis() - timeToFixFrom) / 1000;
+    }
 
-    int knots = 0, course = 0;
+    comment += "FT" + String(timeToFix);
+
+    int knots = 0,
+        course = 0;
 
     int altitudeInFeet = 0, altitudeInMeters = 0;
 
@@ -109,10 +137,7 @@ void loop()
 
     if (BEACON::checkBeaconInterval())
     {
-        latitude = 53.3490;
-        longitude = 17.64309;
-
-        digitalWrite(GPS_EN, LOW);
+        turnOffGPS();
 
         outputPowerFrames++;
 
@@ -142,10 +167,10 @@ void loop()
 
         switch (beaconLoRaFrequency)
         {
-        case 0:
+        case 1:
             RADIO::setupLoRa(APRS_LORA_FREQUENCY_FAST, "1200");
             break;
-        case 1:
+        case 0:
             RADIO::setupLoRa(APRS_LORA_FREQUENCY_SLOW, "300");
             break;
         case 2:
@@ -157,6 +182,6 @@ void loop()
 
         RADIO::reset();
 
-        digitalWrite(GPS_EN, HIGH);
+        turnOnGPS();
     }
 }

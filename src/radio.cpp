@@ -21,7 +21,7 @@ namespace RADIO
 {
     int setupAFSK(float frequency)
     {
-        int state = radio.beginFSK(frequency);
+        int state = radio.beginFSK(frequency + float(CONFIG_RADIO_OFFSET_AFSK));
         if (state != RADIOLIB_ERR_NONE)
         {
             return state;
@@ -52,7 +52,7 @@ namespace RADIO
 
     int setupLoRa(float frequency, String speed)
     {
-        int state = radio.begin(frequency);
+        int state = radio.begin(frequency + float(CONFIG_RADIO_OFFSET_LORA));
 
         if (speed == "300")
         {
@@ -186,9 +186,11 @@ namespace RADIO
 
     void sendAFSK()
     {
-        // char *repeaterCallsigns[] = {"NOHUB"};
-        // uint8_t repeaterSSIDs[] = {0};
-        // aprsAFSK.useRepeaters(repeaterCallsigns, repeaterSSIDs, 1);
+#ifdef CONFIG_NOHUB
+        char *repeaterCallsigns[] = {"NOHUB"};
+        uint8_t repeaterSSIDs[] = {0};
+        aprsAFSK.useRepeaters(repeaterCallsigns, repeaterSSIDs, 1);
+#endif
 
         String lat = processLatitudeAPRS(latitude);
         String lng = processLongitudeAPRS(longitude);
@@ -201,9 +203,13 @@ namespace RADIO
         String lat = processLatitudeAPRS(latitude);
         String lng = processLongitudeAPRS(longitude);
 
-        // String packet = String(CONFIG_APRS_CALLSIGN) + "-" + String(CONFIG_APRS_SSID) + ">APLAIR,NOHUB:!" + lat + "/" + lng + "O" + comment;
+        String packet = "";
 
-        String packet = String(CONFIG_APRS_CALLSIGN) + "-" + String(CONFIG_APRS_SSID) + ">APLAIR:!" + lat + "/" + lng + "O" + comment;
+#ifdef CONFIG_NOHUB
+        packet = String(CONFIG_APRS_CALLSIGN) + "-" + String(CONFIG_APRS_SSID) + ">APLAIR,NOHUB:!" + lat + "/" + lng + "O" + comment;
+#else
+        packet = String(CONFIG_APRS_CALLSIGN) + "-" + String(CONFIG_APRS_SSID) + ">APLAIR:!" + lat + "/" + lng + "O" + comment;
+#endif
 
         radio.transmit("\x3c\xff\x01" + packet);
     }
