@@ -30,6 +30,25 @@ Software is doing TX of both modulations one by one without delay!
 
 Unknown for now
 
+## Frequency (`Fx` used in comment)
+
+### LoRa APRS
+
+-   F1 = `433.775` MHz `300` bps (Slow)
+-   F2 = `434.855` MHz `1200` bps (Fast)
+-   F3 = `439.9125` MHz `300` bps (UK)
+
+### AFSK APRS
+
+-   F4 = `144.80` MHz (Region 1)
+-   F5 = `144.39` MHz (Region 2)
+-   F6 = `145.57` MHz (Brazil)
+-   F7 = `144.64` MHz (China)
+-   F8 = `144.66` MHz (Japan)
+-   F9 = `145.525` MHz (Thailand)
+-   F10 = `144.575` MHz (Newzealand)
+-   F11 = `145.175` MHz (Australia)
+
 ## Pinouts
 
 Pins definitions availabe at `./src/pinout.h`
