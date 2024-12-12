@@ -12,7 +12,7 @@
 
 #define CONFIG_NOHUB // add NOHUB path to be invisible on Sondehub
 
-#define CONFIG_RADIO_OFFSET_AFSK 0
-#define CONFIG_RADIO_OFFSET_LORA 0
+#define CONFIG_RADIO_OFFSET_AFSK -0.005000F
+#define CONFIG_RADIO_OFFSET_LORA -0.015900F
 
 #endif

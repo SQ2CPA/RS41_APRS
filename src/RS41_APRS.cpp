@@ -17,6 +17,7 @@ uint32_t lastBeaconTx = 0;
 
 void setup()
 {
+
     // Serial1.begin(9600); // DEBUG ONLY
 
     pinMode(GPS_EN, OUTPUT);
@@ -68,9 +69,7 @@ void loop()
 
     comment = "P" + String(beaconNum);
     comment += "S" + String(gps.satellites.value());
-
-    if (outputPower < 20)
-        comment += "O" + String(outputPower);
+    comment += "O" + String(outputPower);
 
     comment += "N" + String(CONFIG_APRS_FLIGHT_ID);
 
@@ -100,7 +99,8 @@ void loop()
         timeToFix = (millis() - timeToFixFrom) / 1000;
     }
 
-    comment += "FT" + String(timeToFix);
+    if (timeToFix > -1)
+        comment += "FT" + String(timeToFix);
 
     int knots = 0,
         course = 0;

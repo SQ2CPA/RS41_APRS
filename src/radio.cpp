@@ -89,7 +89,7 @@ namespace RADIO
             delay(20);
         }
 
-        delay(1000);
+        delay(250);
 
         audio.noTone();
     }

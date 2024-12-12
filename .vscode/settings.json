@@ -3,6 +3,8 @@
         "*.tpl": "html",
         "stm32f10x_usart.h": "c",
         "stdio.h": "c",
-        "corecrt_wstdio.h": "c"
+        "corecrt_wstdio.h": "c",
+        "stm32f1xx_ll_system.h": "c",
+        "stm32f1xx_hal_rcc.h": "c"
     }
 }
