@@ -4,8 +4,8 @@
 namespace RADIO
 {
 
-    int setupAFSK(float frequency);
-    int setupLoRa(float frequency, String speed);
+    int setupAFSK(int frequency);
+    int setupLoRa(int frequency, bool isFast);
     bool setup();
     void startupTone();
 

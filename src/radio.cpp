@@ -19,51 +19,44 @@ extern String comment;
 
 namespace RADIO
 {
-    int setupAFSK(float frequency)
+    int setupAFSK(int frequency)
     {
-        int state = radio.beginFSK(frequency + float(CONFIG_RADIO_OFFSET_AFSK));
+        int state = radio.beginFSK(float(frequency + CONFIG_RADIO_OFFSET_AFSK) / 1000000.0F);
         if (state != RADIOLIB_ERR_NONE)
         {
             return state;
         }
 
         state = audio.begin();
-        if (state != RADIOLIB_ERR_NONE)
-        {
-            return state;
-        }
 
         state = ax25.begin(CONFIG_APRS_CALLSIGN, CONFIG_APRS_SSID);
-        if (state != RADIOLIB_ERR_NONE)
-        {
-            return state;
-        }
 
         state = aprsAFSK.begin('O');
-        if (state != RADIOLIB_ERR_NONE)
-        {
-            return state;
-        }
 
         radio.setOutputPower(outputPower);
 
         return state;
     }
 
-    int setupLoRa(float frequency, String speed)
+    int setupLoRa(int frequency, bool isFast)
     {
-        int state = radio.begin(frequency + float(CONFIG_RADIO_OFFSET_LORA));
-
-        if (speed == "300")
+        int state = radio.begin(float(frequency + CONFIG_RADIO_OFFSET_LORA) / 1000000.0F);
+        if (state != RADIOLIB_ERR_NONE)
         {
-            radio.setSpreadingFactor(12);
-            radio.setCodingRate(5);
+            return state;
+        }
+
+        if (isFast)
+        {
+            radio.setSpreadingFactor(9);
+            radio.setCodingRate(7);
             radio.setBandwidth(125);
         }
         else
         {
-            radio.setSpreadingFactor(9);
-            radio.setCodingRate(7);
+
+            radio.setSpreadingFactor(12);
+            radio.setCodingRate(5);
             radio.setBandwidth(125);
         }
 
@@ -74,22 +67,22 @@ namespace RADIO
 
     bool setup()
     {
-        int state = setupAFSK(433.0);
+        int state = setupAFSK(433000000);
 
         return (state == RADIOLIB_ERR_NONE);
     }
 
     void startupTone()
     {
-        setupAFSK(144.025);
+        setupAFSK(144025000);
 
         for (int i = 0; i < 50; i++)
         {
             audio.tone(100 * i);
-            delay(20);
+            delay(10);
         }
 
-        delay(250);
+        delay(50);
 
         audio.noTone();
     }
@@ -124,64 +117,26 @@ namespace RADIO
         return r;
     }
 
-    String processLatitudeAPRS(double lat)
+    void processLatitudeAPRS(double lat, char *result)
     {
-        String degrees = double2string(lat, 6);
-        String north_south, latitude, convDeg3;
-        float convDeg, convDeg2;
+        char north_south = (lat < 0) ? 'S' : 'N';
+        lat = fabs(lat);
 
-        if (abs(degrees.toFloat()) < 10)
-        {
-            latitude += "0";
-        }
-        if (degrees.indexOf("-") == 0)
-        {
-            north_south = "S";
-            latitude += degrees.substring(1, degrees.indexOf("."));
-        }
-        else
-        {
-            north_south = "N";
-            latitude += degrees.substring(0, degrees.indexOf("."));
-        }
-        convDeg = abs(degrees.toFloat()) - abs(int(degrees.toFloat()));
-        convDeg2 = (convDeg * 60) / 100;
-        convDeg3 = String(convDeg2, 6);
-        latitude += convDeg3.substring(convDeg3.indexOf(".") + 1, convDeg3.indexOf(".") + 3) + "." + convDeg3.substring(convDeg3.indexOf(".") + 3, convDeg3.indexOf(".") + 5);
-        latitude += north_south;
-        return latitude;
+        int degrees = (int)lat;
+        double minutes = (lat - degrees) * 60.0;
+
+        sprintf(result, "%02d%02d.%02d%c", degrees, (int)minutes, (int)((minutes - (int)minutes) * 100), north_south);
     }
 
-    String processLongitudeAPRS(double lon)
+    void processLongitudeAPRS(double lon, char *result)
     {
-        String degrees = double2string(lon, 6);
-        String east_west, longitude, convDeg3;
-        float convDeg, convDeg2;
+        char east_west = (lon < 0) ? 'W' : 'E';
+        lon = fabs(lon);
 
-        if (abs(degrees.toFloat()) < 100)
-        {
-            longitude += "0";
-        }
-        if (abs(degrees.toFloat()) < 10)
-        {
-            longitude += "0";
-        }
-        if (degrees.indexOf("-") == 0)
-        {
-            east_west = "W";
-            longitude += degrees.substring(1, degrees.indexOf("."));
-        }
-        else
-        {
-            east_west = "E";
-            longitude += degrees.substring(0, degrees.indexOf("."));
-        }
-        convDeg = abs(degrees.toFloat()) - abs(int(degrees.toFloat()));
-        convDeg2 = (convDeg * 60) / 100;
-        convDeg3 = String(convDeg2, 6);
-        longitude += convDeg3.substring(convDeg3.indexOf(".") + 1, convDeg3.indexOf(".") + 3) + "." + convDeg3.substring(convDeg3.indexOf(".") + 3, convDeg3.indexOf(".") + 5);
-        longitude += east_west;
-        return longitude;
+        int degrees = (int)lon;
+        double minutes = (lon - degrees) * 60.0;
+
+        sprintf(result, "%03d%02d.%02d%c", degrees, (int)minutes, (int)((minutes - (int)minutes) * 100), east_west);
     }
 
     void sendAFSK()
@@ -192,26 +147,33 @@ namespace RADIO
         aprsAFSK.useRepeaters(repeaterCallsigns, repeaterSSIDs, 1);
 #endif
 
-        String lat = processLatitudeAPRS(latitude);
-        String lng = processLongitudeAPRS(longitude);
+        char lat[12];
+        char lng[13];
 
-        aprsAFSK.sendPosition("APLAIR", 0, (char *)lat.c_str(), (char *)lng.c_str(), (char *)comment.c_str());
+        processLatitudeAPRS(latitude, lat);
+        processLongitudeAPRS(longitude, lng);
+
+        aprsAFSK.sendPosition("APLAIR", 0, lat, lng, (char *)comment.c_str());
     }
 
     void sendLoRa()
     {
-        String lat = processLatitudeAPRS(latitude);
-        String lng = processLongitudeAPRS(longitude);
+        char lat[12];
+        char lng[13];
 
-        String packet = "";
+        processLatitudeAPRS(latitude, lat);
+        processLongitudeAPRS(longitude, lng);
 
+        char packet[256];
 #ifdef CONFIG_NOHUB
-        packet = String(CONFIG_APRS_CALLSIGN) + "-" + String(CONFIG_APRS_SSID) + ">APLAIR,NOHUB:!" + lat + "/" + lng + "O" + comment;
+        snprintf(packet, sizeof(packet), "%s-%d>APLAIR,NOHUB:!%s/%sO%s", CONFIG_APRS_CALLSIGN, CONFIG_APRS_SSID, lat, lng, comment.c_str());
 #else
-        packet = String(CONFIG_APRS_CALLSIGN) + "-" + String(CONFIG_APRS_SSID) + ">APLAIR:!" + lat + "/" + lng + "O" + comment;
+        snprintf(packet, sizeof(packet), "%s-%d>APLAIR:!%s/%sO%s", CONFIG_APRS_CALLSIGN, CONFIG_APRS_SSID, lat, lng, comment.c_str());
 #endif
 
-        radio.transmit("\x3c\xff\x01" + packet);
+        char fullPacket[260];
+        snprintf(fullPacket, sizeof(fullPacket), "\x3c\xff\x01%s", packet);
+        radio.transmit(fullPacket);
     }
 
     void reset()

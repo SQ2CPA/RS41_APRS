@@ -7,6 +7,10 @@
 The goal of this project is to show that you can use some components from RS41 radiosonde in your own trackers.
 You can also check WSPR version [here](https://github.com/SQ2CPA/RS41_WSPR).
 
+## Dedicated for aprs2sondehub
+
+Try aprs2sondehub [here](https://github.com/SQ2CPA/aprs2sondehub/) to extend your features!
+
 ## Used components from RS41
 
 1. STM32F100C8

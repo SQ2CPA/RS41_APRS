@@ -15,29 +15,6 @@ int beaconLoRaFrequency = 0; // 0-2
 int beaconNum = 0;
 uint32_t lastBeaconTx = 0;
 
-void setup()
-{
-
-    // Serial1.begin(9600); // DEBUG ONLY
-
-    pinMode(GPS_EN, OUTPUT);
-
-    digitalWrite(GPS_EN, LOW);
-
-    RADIO::setup();
-
-#ifdef CONFIG_STARTUP_TONE_ENABLE
-    RADIO::startupTone();
-#endif
-}
-
-int outputPower = 15;
-
-double latitude = 0, longitude = 0;
-String comment = "";
-
-int outputPowerFrames = 0;
-
 bool hasFix = false;
 uint32_t timeToFixFrom = millis();
 int timeToFix = -1;
@@ -58,6 +35,28 @@ void turnOffGPS()
     digitalWrite(GPS_EN, LOW);
 }
 
+void setup()
+{
+    pinMode(GPS_EN, OUTPUT);
+
+    digitalWrite(GPS_EN, LOW);
+
+    RADIO::setup();
+
+#ifdef CONFIG_STARTUP_TONE_ENABLE
+    RADIO::startupTone();
+#endif
+
+    delay(10000);
+}
+
+int outputPower = 15;
+
+double latitude = 0, longitude = 0;
+String comment = "";
+
+int beaconInterval = 0;
+
 void loop()
 {
     while (Serial1.available() > 0)
@@ -70,10 +69,13 @@ void loop()
     comment = "P" + String(beaconNum);
     comment += "S" + String(gps.satellites.value());
     comment += "O" + String(outputPower);
+    comment += "F0";
 
     comment += "N" + String(CONFIG_APRS_FLIGHT_ID);
 
     comment += " ";
+
+    beaconInterval = int(CONFIG_APRS_INTERVAL);
 
     if (!gps.altitude.isValid())
     {
@@ -92,6 +94,8 @@ void loop()
                 comment += "T+ ";
             }
         }
+
+        beaconInterval = int(CONFIG_APRS_INTERVAL_NOFIX);
     }
     else if (!hasFix)
     {
@@ -139,13 +143,10 @@ void loop()
     {
         turnOffGPS();
 
-        outputPowerFrames++;
+        outputPower = 15 + beaconNum / 3;
 
-        if (outputPowerFrames >= 6 && outputPower < 20)
-        {
-            outputPowerFrames = 0;
-            outputPower++;
-        }
+        if (outputPower > 20)
+            outputPower = 20;
 
         String tspeed = String(knots);
         String tdirection = String(course);
@@ -160,21 +161,28 @@ void loop()
 
         comment = tdirection + "/" + tspeed + "/A=" + taltitude + "/" + comment;
 
-        float frequencyAFSK = GEOFENCE::getAFSKFrequency(latitude, longitude);
+        String ocomment = comment;
+
+        int frequencyAFSK = GEOFENCE::getAFSKFrequency(latitude, longitude);
 
         RADIO::setupAFSK(frequencyAFSK);
         RADIO::sendAFSK();
 
+        comment = ocomment;
+
         switch (beaconLoRaFrequency)
         {
-        case 1:
-            RADIO::setupLoRa(APRS_LORA_FREQUENCY_FAST, "1200");
-            break;
         case 0:
-            RADIO::setupLoRa(APRS_LORA_FREQUENCY_SLOW, "300");
+            RADIO::setupLoRa(APRS_LORA_FREQUENCY_FAST, true);
+            comment.replace("F0", "F2");
+            break;
+        case 1:
+            RADIO::setupLoRa(APRS_LORA_FREQUENCY_SLOW, false);
+            comment.replace("F0", "F1");
             break;
         case 2:
-            RADIO::setupLoRa(APRS_LORA_FREQUENCY_UK, "300");
+            RADIO::setupLoRa(APRS_LORA_FREQUENCY_UK, false);
+            comment.replace("F0", "F3");
             break;
         }
 
