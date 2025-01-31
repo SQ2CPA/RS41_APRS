@@ -1,1 +1,0 @@
-openocd -f ./openocd_rs41.cfg -c "program .pio/build/stm32f100c8t6/firmware.elf verify reset exit"

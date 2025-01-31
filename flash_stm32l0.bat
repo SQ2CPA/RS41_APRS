@@ -1,0 +1,1 @@
+openocd -f ./openocd_stm32l0.cfg -c "program .pio/build/stm32l051k8u6/firmware.elf verify reset exit"
