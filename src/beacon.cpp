@@ -21,7 +21,8 @@ namespace BEACON
 
             beaconLoRaFrequency++;
 
-            if (beaconLoRaFrequency >= 3)
+            // if (beaconLoRaFrequency >= 3)
+            if (beaconLoRaFrequency >= 2) // Exclude UK 439 Mhz LoRa QRG
                 beaconLoRaFrequency = 0;
 
             return true;

@@ -31,6 +31,10 @@ namespace RADIO
 
         state = ax25.begin(CONFIG_APRS_CALLSIGN, CONFIG_APRS_SSID);
 
+#ifdef CONFIG_RADIO_AFSK_MARK
+        ax25.setCorrection(CONFIG_RADIO_AFSK_MARK, CONFIG_RADIO_AFSK_SPACE, CONFIG_RADIO_AFSK_LENGTH);
+#endif
+
         state = aprsAFSK.begin('O');
 
         radio.setOutputPower(outputPower);
@@ -76,6 +80,18 @@ namespace RADIO
     {
         setupAFSK(144025000);
 
+#ifdef CONFIG_TEST_AFSK_MARK
+        audio.tone(1200);
+
+        delay(300000);
+#endif
+
+#ifdef CONFIG_TEST_AFSK_SPACE
+        audio.tone(2200);
+
+        delay(300000);
+#endif
+
         for (int i = 0; i < 50; i++)
         {
             audio.tone(100 * i);
@@ -85,6 +101,8 @@ namespace RADIO
         delay(50);
 
         audio.noTone();
+
+        delay(1000);
     }
 
     char *ax25_base91enc(char *s, uint8_t n, uint32_t v)

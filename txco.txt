@@ -1,0 +1,11 @@
+https://github.com/jgromes/RadioLib/issues/207
+
+/src/SX127x/SX127x.cpp
+in SX127x::begin
+before int16_t state = standby();
+
+```
+this->mod->SPIsetRegValue(0x4B, 1, 4, 4);
+
+// set mode to standby
+```

@@ -34,9 +34,27 @@ void turnOffGPS()
     Serial1.end();
     digitalWrite(GPS_EN, LOW);
 }
-
 void setup()
 {
+#ifdef CONFIG_SET_BOR
+    HAL_FLASH_Unlock();
+    HAL_FLASH_OB_Unlock();
+
+    FLASH_OBProgramInitTypeDef OBInit;
+    HAL_FLASHEx_OBGetConfig(&OBInit);
+
+    OBInit.OptionType = OPTIONBYTE_BOR;
+    OBInit.BORLevel = OB_BOR_LEVEL2; // 1=1.7V, 2=1.8V, 3=2.1V
+
+    if (HAL_FLASHEx_OBProgram(&OBInit) == HAL_OK)
+    {
+        HAL_FLASH_OB_Launch();
+    }
+
+    HAL_FLASH_OB_Lock();
+    HAL_FLASH_Lock();
+#endif
+
     pinMode(GPS_EN, OUTPUT);
 
     digitalWrite(GPS_EN, LOW);
@@ -100,7 +118,15 @@ void loop()
     else if (!hasFix)
     {
         hasFix = true;
-        timeToFix = (millis() - timeToFixFrom) / 1000;
+
+        if (gps.satellites.value() == 0)
+        {
+            beaconInterval = int(CONFIG_APRS_INTERVAL_NOFIX);
+        }
+        else
+        {
+            timeToFix = (millis() - timeToFixFrom) / 1000;
+        }
     }
 
     if (timeToFix > -1)
