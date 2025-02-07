@@ -117,14 +117,14 @@ void loop()
     }
     else if (!hasFix)
     {
-        hasFix = true;
-
         if (gps.satellites.value() == 0)
         {
             beaconInterval = int(CONFIG_APRS_INTERVAL_NOFIX);
         }
         else
         {
+            hasFix = true;
+
             timeToFix = (millis() - timeToFixFrom) / 1000;
         }
     }

@@ -23,6 +23,12 @@ namespace GEOFENCE
 
     int getAFSKFrequency(int16_t gps_latitude, int16_t gps_longitude)
     {
+        if (gps_latitude != 0 && gps_longitude != 0)
+        {
+            gps_latitude = (int16_t)(gps_latitude * 100);
+            gps_longitude = (int16_t)(gps_longitude * 100);
+        }
+
         int frequency = APRS_AFSK_FREQUENCY_DEFAULT;
         int F = 4;
 
