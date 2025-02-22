@@ -78,4 +78,8 @@ flash `./flash.bat`
 
 or you can flash `./.pio/build/stm32f100c8t6/firmware.elf` via your favorite flasher
 
+# Credits
+
+Some parts of the code were pre-written by `SP2ROC`. Visit his QRZ.com page and check out his balloons!
+
 # 73, Damian SQ2CPA, Poland
