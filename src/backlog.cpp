@@ -161,22 +161,31 @@ namespace BACKLOG
         beaconsCount = 0;
 
         uint8_t current_index;
-
         EEPROM.get(EEPROM_BASE91_INDEX_ADDRESS, current_index);
 
-        uint8_t sent_slots = 0;
+        uint8_t local_offset;
+        EEPROM.get(EEPROM_LOCAL_OFFSET_ADDRESS, local_offset);
+
+        if (current_index == 0xFF)
+            current_index = 0;
+
+        if (local_offset == 0xFF)
+            local_offset = 0;
 
         final_buffer[0] = '\0';
 
-        uint8_t oldest_index = (current_index + 1) % EEPROM_BASE91_SLOT_COUNT;
-        uint8_t middle_index = (current_index + EEPROM_BASE91_SLOT_COUNT / 2) % EEPROM_BASE91_SLOT_COUNT;
-        uint8_t newest_index = current_index;
+        uint8_t appended_slots = 0;
+        uint8_t consumed_slots = 0;
 
-        auto read_slot = [&](uint8_t index)
+        uint8_t oldest_index = (current_index + 1 + local_offset) % EEPROM_BASE91_SLOT_COUNT;
+
+        for (uint8_t i = 0; i < EEPROM_BASE91_SLOT_COUNT && appended_slots < 15; i++)
         {
-            uint16_t read_address = EEPROM_BASE91_DATA_START + index * EEPROM_BASE91_SLOT_SIZE;
-
             char backlog_buffer[EEPROM_BASE91_SLOT_SIZE + 1] = {0};
+
+            uint8_t slot_index = (oldest_index + i) % EEPROM_BASE91_SLOT_COUNT;
+
+            uint16_t read_address = EEPROM_BASE91_DATA_START + slot_index * EEPROM_BASE91_SLOT_SIZE;
 
             uint32_t part1;
             uint32_t part2;
@@ -203,31 +212,22 @@ namespace BACKLOG
             if (isOk && backlog_buffer[0] >= 33 && backlog_buffer[0] <= 126)
             {
                 strcat(final_buffer, backlog_buffer);
-                sent_slots++;
+                appended_slots++;
             }
-        };
 
-        uint8_t i = 0;
-        while (sent_slots < 15 && i < EEPROM_BASE91_SLOT_COUNT)
-        {
-            if (sent_slots < 15)
-                read_slot((oldest_index + i) % EEPROM_BASE91_SLOT_COUNT);
-            if (sent_slots < 15)
-                read_slot((middle_index + i) % EEPROM_BASE91_SLOT_COUNT);
-            if (sent_slots < 15)
-                read_slot((newest_index + EEPROM_BASE91_SLOT_COUNT - i) % EEPROM_BASE91_SLOT_COUNT);
-            i++;
+            consumed_slots++;
         }
 
-        if (sent_slots == 0)
+        if (appended_slots == 0)
             sprintf(final_buffer, "BACKLOG_EMPTY");
 
-        current_index = (current_index + 15) % EEPROM_BASE91_SLOT_COUNT;
+        uint8_t new_local_offset = (local_offset + consumed_slots) % EEPROM_BASE91_SLOT_COUNT;
 
-        EEPROM.put(0, 0xFFFFFFFF);
-
-        EEPROM.put(EEPROM_BASE91_INDEX_ADDRESS, 0xFF);
-        EEPROM.put(EEPROM_BASE91_INDEX_ADDRESS, current_index);
+        if (new_local_offset != local_offset)
+        {
+            EEPROM.put(EEPROM_LOCAL_OFFSET_ADDRESS, 0xFF);
+            EEPROM.put(EEPROM_LOCAL_OFFSET_ADDRESS, new_local_offset);
+        }
 
         return final_buffer;
     }
