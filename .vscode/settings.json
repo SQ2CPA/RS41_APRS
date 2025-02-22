@@ -5,6 +5,12 @@
         "stdio.h": "c",
         "corecrt_wstdio.h": "c",
         "stm32f1xx_ll_system.h": "c",
-        "stm32f1xx_hal_rcc.h": "c"
+        "stm32f1xx_hal_rcc.h": "c",
+        "*.tcc": "cpp",
+        "array": "cpp",
+        "memory": "cpp",
+        "functional": "cpp",
+        "tuple": "cpp",
+        "utility": "cpp"
     }
 }

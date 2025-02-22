@@ -1,106 +1,68 @@
-#include <RadioLib.h>
 #include "pinout.h"
 #include "configuration.h"
+#include <Arduino.h>
+#include "SX1278.h"
+#include "ax25.h"
 
-SX1278 radio = new Module(SX1278_NSS, SX1278_DIO0, SX1278_RESET, SX1278_DIO1);
-
-AFSKClient audio(&radio, SX1278_DIO2);
-
-AX25Client ax25(&audio);
-
-APRSClient aprsAFSK(&ax25);
-
-extern int outputPower;
+extern uint8_t outputPower;
 
 extern double latitude;
 extern double longitude;
 
 extern String comment;
 
+extern char timestamp[7];
+
 namespace RADIO
 {
-    int setupAFSK(int frequency)
+    static uint64_t currentFrequency = 433000000;
+
+    void setupAFSK(int frequency)
     {
-        int state = radio.beginFSK(float(frequency + CONFIG_RADIO_OFFSET_AFSK) / 1000000.0F);
-        if (state != RADIOLIB_ERR_NONE)
-        {
-            return state;
-        }
+        currentFrequency = frequency;
 
-        state = audio.begin();
+        SX1278_begin();
 
-        state = ax25.begin(CONFIG_APRS_CALLSIGN, CONFIG_APRS_SSID);
-
-#ifdef CONFIG_RADIO_AFSK_MARK
-        ax25.setCorrection(CONFIG_RADIO_AFSK_MARK, CONFIG_RADIO_AFSK_SPACE, CONFIG_RADIO_AFSK_LENGTH);
-#endif
-
-        state = aprsAFSK.begin('O');
-
-        radio.setOutputPower(outputPower);
-
-        return state;
+        delay(100);
     }
 
-    int setupLoRa(int frequency, bool isFast)
+    void setupLoRa(int frequency, bool isFast)
     {
-        int state = radio.begin(float(frequency + CONFIG_RADIO_OFFSET_LORA) / 1000000.0F);
-        if (state != RADIOLIB_ERR_NONE)
-        {
-            return state;
-        }
+        currentFrequency = frequency;
+
+        SX1278_begin();
 
         if (isFast)
         {
-            radio.setSpreadingFactor(9);
-            radio.setCodingRate(7);
-            radio.setBandwidth(125);
+            SX1278_init_LoRa(9, 125, 7, frequency);
         }
         else
         {
-
-            radio.setSpreadingFactor(12);
-            radio.setCodingRate(5);
-            radio.setBandwidth(125);
+            SX1278_init_LoRa(12, 125, 5, frequency);
         }
 
-        radio.setOutputPower(outputPower);
+        SX1278_set_LoRa_power(outputPower);
 
-        return state;
-    }
-
-    bool setup()
-    {
-        int state = setupAFSK(433000000);
-
-        return (state == RADIOLIB_ERR_NONE);
+        delay(100);
     }
 
     void startupTone()
     {
         setupAFSK(144025000);
 
-#ifdef CONFIG_TEST_AFSK_MARK
-        audio.tone(1200);
-
-        delay(300000);
-#endif
-
-#ifdef CONFIG_TEST_AFSK_SPACE
-        audio.tone(2200);
-
-        delay(300000);
-#endif
-
         for (int i = 0; i < 50; i++)
         {
-            audio.tone(100 * i);
-            delay(10);
+            uint64_t frequency = currentFrequency + 100 * i;
+            SX1278_enable_TX_direct(&frequency, 15, 3000);
+
+            unsigned long startedAt = millis();
+            while (millis() - startedAt < 10)
+            {
+                SX1278_mod_direct_out(500);
+            }
         }
 
-        delay(50);
-
-        audio.noTone();
+        SX1278_sleep();
 
         delay(1000);
     }
@@ -113,26 +75,6 @@ namespace RADIO
             v /= 91;
         }
         return (s);
-    }
-
-    String double2string(double n, int ndec)
-    {
-        String r = "";
-        if (n > -1 && n < 0)
-        {
-            r = "-";
-        }
-        int v = n;
-        r += v;
-        r += '.';
-        for (int i = 0; i < ndec; i++)
-        {
-            n -= v;
-            n = 10 * abs(n);
-            v = n;
-            r += v;
-        }
-        return r;
     }
 
     void processLatitudeAPRS(double lat, char *result)
@@ -157,21 +99,28 @@ namespace RADIO
         sprintf(result, "%03d%02d.%02d%c", degrees, (int)minutes, (int)((minutes - (int)minutes) * 100), east_west);
     }
 
+    void sendAFSKStatus(char *status)
+    {
+        ax25_aprs_send_status_packet(&currentFrequency, outputPower, SX1278_DEVIATION, CONFIG_APRS_CALLSIGN, CONFIG_APRS_SSID, status);
+    }
+
     void sendAFSK()
     {
-#ifdef CONFIG_NOHUB
-        char *repeaterCallsigns[] = {"NOHUB"};
-        uint8_t repeaterSSIDs[] = {0};
-        aprsAFSK.useRepeaters(repeaterCallsigns, repeaterSSIDs, 1);
-#endif
-
         char lat[12];
         char lng[13];
 
         processLatitudeAPRS(latitude, lat);
         processLongitudeAPRS(longitude, lng);
 
-        aprsAFSK.sendPosition("APLAIR", 0, lat, lng, (char *)comment.c_str());
+        ax25_aprs_send_position_packet(&currentFrequency, outputPower, SX1278_DEVIATION, CONFIG_APRS_CALLSIGN, CONFIG_APRS_SSID, lat, lng, timestamp, (char *)comment.c_str());
+    }
+
+    void sendLoRaStatus(char *status)
+    {
+        char packet[256];
+        snprintf(packet, sizeof(packet), "\x3c\xff\x01%s-%d>APLAIR,NOHUB:>%s", CONFIG_APRS_CALLSIGN, CONFIG_APRS_SSID, status);
+
+        SX1278_send_LoRa_packet((const uint8_t *)packet, strlen(packet));
     }
 
     void sendLoRa()
@@ -183,20 +132,18 @@ namespace RADIO
         processLongitudeAPRS(longitude, lng);
 
         char packet[256];
+
 #ifdef CONFIG_NOHUB
-        snprintf(packet, sizeof(packet), "%s-%d>APLAIR,NOHUB:!%s/%sO%s", CONFIG_APRS_CALLSIGN, CONFIG_APRS_SSID, lat, lng, comment.c_str());
+        snprintf(packet, sizeof(packet), "\x3c\xff\x01%s-%d>APLAIR,NOHUB:/%sh%s/%sO%s", CONFIG_APRS_CALLSIGN, CONFIG_APRS_SSID, timestamp, lat, lng, comment.c_str());
 #else
-        snprintf(packet, sizeof(packet), "%s-%d>APLAIR:!%s/%sO%s", CONFIG_APRS_CALLSIGN, CONFIG_APRS_SSID, lat, lng, comment.c_str());
+        snprintf(packet, sizeof(packet), "\x3c\xff\x01%s-%d>APLAIR:/%sh%s/%sO%s", CONFIG_APRS_CALLSIGN, CONFIG_APRS_SSID, timestamp, lat, lng, comment.c_str());
 #endif
 
-        char fullPacket[260];
-        snprintf(fullPacket, sizeof(fullPacket), "\x3c\xff\x01%s", packet);
-        radio.transmit(fullPacket);
+        SX1278_send_LoRa_packet((const uint8_t *)packet, strlen(packet));
     }
 
     void reset()
     {
-        radio.standby();
-        radio.reset();
+        SX1278_reset();
     }
 }

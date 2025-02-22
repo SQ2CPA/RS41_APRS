@@ -1,7 +1,7 @@
-#include "Arduino.h"
-
 #ifndef GEOFENCE_H_
 #define GEOFENCE_H_
+
+#include "Arduino.h"
 
 const int16_t region1_vertices_lat[] = {3855, 2158, 711, 2476, 3460, 4255, 4955, 4255, 5455, 4855, 7855, 7855};
 const int16_t region1_vertices_long[] = {-3355, -2717, 8823, 8812, 7106, 7055, 8655, 10355, 12255, 14655, 17855, -2755};

@@ -1,11 +1,14 @@
-#include "Arduino.h"
-#include <RadioLib.h>
+#include <Arduino.h>
 #include "pinout.h"
 #include "configuration.h"
 #include "radio.h"
 #include "beacon.h"
 #include <TinyGPS++.h>
 #include "geofence.h"
+#include "backlog.h"
+#include "odometer.h"
+#include "stm32l0xx_hal.h"
+#include "stm32l0xx_ll_adc.h"
 
 HardwareSerial Serial1(GPS_RX, GPS_TX);
 
@@ -18,6 +21,10 @@ uint32_t lastBeaconTx = 0;
 bool hasFix = false;
 uint32_t timeToFixFrom = millis();
 int timeToFix = -1;
+
+char timestamp[7] = "000000";
+
+uint32_t totalDistanceKm = 0;
 
 void turnOnGPS()
 {
@@ -34,6 +41,36 @@ void turnOffGPS()
     Serial1.end();
     digitalWrite(GPS_EN, LOW);
 }
+
+int32_t readVref()
+{
+#ifdef __LL_ADC_CALC_VREFANALOG_VOLTAGE
+    return (__LL_ADC_CALC_VREFANALOG_VOLTAGE(analogRead(AVREF), LL_ADC_RESOLUTION_12B));
+#else
+    return (VREFINT * ADC_RANGE / analogRead(AVREF));
+#endif
+}
+
+int32_t readVdd()
+{
+#ifdef __LL_ADC_CALC_VREFANALOG_VOLTAGE
+    return (__LL_ADC_CALC_VREFANALOG_VOLTAGE(analogRead(AVREF), LL_ADC_RESOLUTION_12B));
+#else
+    return (VREFINT * ADC_RANGE / analogRead(AVREF)); // ADC sample to mV
+#endif
+}
+
+int32_t readTemperature(int32_t VRef)
+{
+#ifdef __LL_ADC_CALC_TEMPERATURE
+    return (__LL_ADC_CALC_TEMPERATURE(VRef, analogRead(ATEMP), LL_ADC_RESOLUTION_12B));
+#elif defined(__LL_ADC_CALC_TEMPERATURE_TYP_PARAMS)
+    return (__LL_ADC_CALC_TEMPERATURE_TYP_PARAMS(AVG_SLOPE, V25, CALX_TEMP, VRef, analogRead(ATEMP), LL_ADC_RESOLUTION)); //   like this
+#else
+    return 0;
+#endif
+}
+
 void setup()
 {
 #ifdef CONFIG_SET_BOR
@@ -59,21 +96,41 @@ void setup()
 
     digitalWrite(GPS_EN, LOW);
 
-    RADIO::setup();
-
 #ifdef CONFIG_STARTUP_TONE_ENABLE
     RADIO::startupTone();
 #endif
 
+#ifdef CONFIG_ERASE_EEPROM
+    HAL_FLASHEx_DATAEEPROM_Unlock();
+    for (uint32_t i = 0; i < 2048; i += 4)
+    {
+        HAL_FLASHEx_DATAEEPROM_Program(FLASH_TYPEPROGRAMDATA_WORD, DATA_EEPROM_BASE + i, 0xFFFFFFFF);
+    }
+    HAL_FLASHEx_DATAEEPROM_Lock();
+
+    RADIO::startupTone();
+
+    while (1)
+        ;
+#endif
+
     delay(10000);
+    ODOMETER::setup();
+
+    pinMode(ATEMP, INPUT_ANALOG);
+    pinMode(AVREF, INPUT_ANALOG);
+
+    analogReadResolution(12);
 }
 
-int outputPower = 15;
+uint8_t outputPower = 15;
 
 double latitude = 0, longitude = 0;
 String comment = "";
 
 int beaconInterval = 0;
+
+int satellites = 0;
 
 void loop()
 {
@@ -84,8 +141,23 @@ void loop()
         gps.encode(data);
     }
 
+    satellites = gps.satellites.value();
+
+    uint32_t Vref = readVref();
+
+    uint32_t temperature = readTemperature(Vref) + CONFIG_TEMPERATURE_OFFSET;
+
     comment = "P" + String(beaconNum);
-    comment += "S" + String(gps.satellites.value());
+    comment += "S" + String(satellites);
+
+    if (temperature > -100 && temperature < 50)
+        comment += "T" + String(temperature);
+
+    char voltage[3];
+    sprintf(voltage, "%03d", (int(Vref * CONFIG_VDD_CALIBRATION)) / 10);
+
+    comment += "V" + String(voltage);
+
     comment += "O" + String(outputPower);
     comment += "F0";
 
@@ -117,7 +189,7 @@ void loop()
     }
     else if (!hasFix)
     {
-        if (gps.satellites.value() == 0)
+        if (satellites == 0)
         {
             beaconInterval = int(CONFIG_APRS_INTERVAL_NOFIX);
         }
@@ -129,8 +201,22 @@ void loop()
         }
     }
 
+    if (gps.time.isValid())
+        snprintf(timestamp, sizeof(timestamp), "%02d%02d%02d", gps.time.hour(), gps.time.minute(), gps.time.second());
+
     if (timeToFix > -1)
         comment += "FT" + String(timeToFix);
+
+    if (totalDistanceKm < 1000)
+    {
+        comment += " ODO=" + String(totalDistanceKm) + "km";
+    }
+    else
+    {
+        comment += " ODO=" + String(int((totalDistanceKm + 500) / 1000)) + "kkm";
+    }
+
+    // comment += " THIS IS TEST!!!";
 
     int knots = 0,
         course = 0;
@@ -165,9 +251,14 @@ void loop()
         altitudeInMeters = 0;
     }
 
+    if (altitudeInMeters > 9000 && altitudeInMeters < 16000)
+        ODOMETER::update();
+
     if (BEACON::checkBeaconInterval())
     {
         turnOffGPS();
+
+        char *backlogStatus = BACKLOG::checkBeaconInterval();
 
         outputPower = 15 + beaconNum / 3;
 
@@ -192,7 +283,17 @@ void loop()
         int frequencyAFSK = GEOFENCE::getAFSKFrequency(latitude, longitude);
 
         RADIO::setupAFSK(frequencyAFSK);
-        RADIO::sendAFSK();
+
+        if (backlogStatus != nullptr)
+        {
+            RADIO::sendAFSKStatus(backlogStatus);
+        }
+        else
+        {
+            RADIO::sendAFSK();
+        }
+
+        RADIO::reset();
 
         comment = ocomment;
 
@@ -212,7 +313,14 @@ void loop()
             break;
         }
 
-        RADIO::sendLoRa();
+        if (backlogStatus != nullptr)
+        {
+            RADIO::sendLoRaStatus(backlogStatus);
+        }
+        else
+        {
+            RADIO::sendLoRa();
+        }
 
         RADIO::reset();
 

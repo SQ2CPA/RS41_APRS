@@ -4,13 +4,16 @@
 namespace RADIO
 {
 
-    int setupAFSK(int frequency);
-    int setupLoRa(int frequency, bool isFast);
-    bool setup();
+    void setupAFSK(int frequency);
+    void setupLoRa(int frequency, bool isFast);
+
     void startupTone();
 
     void sendAFSK();
     void sendLoRa();
+
+    void sendAFSKStatus(char *status);
+    void sendLoRaStatus(char *status);
 
     void reset();
 
