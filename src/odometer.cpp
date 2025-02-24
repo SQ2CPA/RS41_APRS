@@ -73,7 +73,7 @@ namespace ODOMETER
             if (diff > 180.0)
                 distanceMeters = 0;
 
-            if (distanceMeters <= MAX_JUMP_DISTANCE_METERS)
+            if (distanceMeters > MAX_JUMP_DISTANCE_METERS)
                 distanceMeters = 0;
 
             distanceMetersAccumulator += (unsigned long)distanceMeters;
