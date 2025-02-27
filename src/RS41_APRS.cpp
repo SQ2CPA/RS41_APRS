@@ -7,8 +7,11 @@
 #include "geofence.h"
 #include "backlog.h"
 #include "odometer.h"
+
+#ifdef STM32L0
 #include "stm32l0xx_hal.h"
 #include "stm32l0xx_ll_adc.h"
+#endif
 
 HardwareSerial Serial1(GPS_RX, GPS_TX);
 
@@ -42,6 +45,7 @@ void turnOffGPS()
     digitalWrite(GPS_EN, LOW);
 }
 
+#ifdef STM32L0
 int32_t readVref()
 {
 #ifdef __LL_ADC_CALC_VREFANALOG_VOLTAGE
@@ -70,6 +74,7 @@ int32_t readTemperature(int32_t VRef)
     return 0;
 #endif
 }
+#endif
 
 void setup()
 {
@@ -115,12 +120,15 @@ void setup()
 #endif
 
     delay(10000);
+
+#ifdef STM32L
     ODOMETER::setup();
 
     pinMode(ATEMP, INPUT_ANALOG);
     pinMode(AVREF, INPUT_ANALOG);
 
     analogReadResolution(12);
+#endif
 }
 
 uint8_t outputPower = 15;
@@ -143,12 +151,13 @@ void loop()
 
     satellites = gps.satellites.value();
 
+    comment = "P" + String(beaconNum);
+    comment += "S" + String(satellites);
+
+#ifdef STM32L0
     uint32_t Vref = readVref();
 
     uint32_t temperature = readTemperature(Vref) + CONFIG_TEMPERATURE_OFFSET;
-
-    comment = "P" + String(beaconNum);
-    comment += "S" + String(satellites);
 
     if (temperature > -100 && temperature < 50)
         comment += "T" + String(temperature);
@@ -157,6 +166,7 @@ void loop()
     sprintf(voltage, "%03d", (int(Vref * CONFIG_VDD_CALIBRATION)) / 10);
 
     comment += "V" + String(voltage);
+#endif
 
     comment += "O" + String(outputPower);
     comment += "F0";
@@ -207,6 +217,7 @@ void loop()
     if (timeToFix > -1)
         comment += "FT" + String(timeToFix);
 
+#ifdef STM32L
     if (totalDistanceKm < 1000)
     {
         comment += " ODO=" + String(totalDistanceKm) + "km";
@@ -215,8 +226,7 @@ void loop()
     {
         comment += " ODO=" + String(int((totalDistanceKm + 500) / 1000)) + "kkm";
     }
-
-    // comment += " THIS IS TEST!!!";
+#endif
 
     int knots = 0,
         course = 0;
@@ -251,14 +261,20 @@ void loop()
         altitudeInMeters = 0;
     }
 
+#ifdef STM32L
     if (altitudeInMeters > 9000 && altitudeInMeters < 16000)
         ODOMETER::update();
+#endif
 
     if (BEACON::checkBeaconInterval())
     {
         turnOffGPS();
 
-        char *backlogStatus = BACKLOG::checkBeaconInterval();
+        char *backlogStatus = nullptr;
+
+#ifdef STM32L
+        backlogStatus = BACKLOG::checkBeaconInterval();
+#endif
 
         outputPower = 15 + beaconNum / 3;
 

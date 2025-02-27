@@ -95,6 +95,8 @@ namespace ODOMETER
 
                 lastDistanceLoggedKm = totalDistanceKm;
 
+                EEPROM.put(0, 0xFFFFFFFF);
+
                 EEPROM.put(EEPROM_LAST_DISTANCE_LOGGED_ADDRESS, 0xFFFFFFFF);
 
                 EEPROM.put(EEPROM_LAST_DISTANCE_LOGGED_ADDRESS, lastDistanceLoggedKm);
@@ -103,6 +105,8 @@ namespace ODOMETER
             if (beaconNum % 20 == 0 && satellites > 3)
             {
                 GpsData gpsData = {lastLatitude, lastLongitude};
+
+                EEPROM.put(0, 0xFFFFFFFF);
 
                 EEPROM.put(EEPROM_TOTAL_DISTANCE_ADDRESS, 0xFFFFFFFF);
                 EEPROM.put(EEPROM_GPS_DATA_ADDRESS, 0xFFFFFFFF);
@@ -116,6 +120,8 @@ namespace ODOMETER
             if (currentMinute % SAVE_TO_EEPROM_INTERVAL_MINUTES == 0 && currentMinute != lastSaveMinute)
             {
                 GpsData gpsData = {lastLatitude, lastLongitude};
+
+                EEPROM.put(0, 0xFFFFFFFF);
 
                 EEPROM.put(EEPROM_TOTAL_DISTANCE_ADDRESS, 0xFFFFFFFF);
                 EEPROM.put(EEPROM_GPS_DATA_ADDRESS, 0xFFFFFFFF);

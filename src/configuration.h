@@ -13,10 +13,10 @@
 
 #define CONFIG_NOHUB // add NOHUB path to be ignored by sondehub APRSIS gateway (if you want to use aprs2sondehub)
 
-#define CONFIG_VDD_CALIBRATION 1.0F // Internal voltage calibration
-#define CONFIG_TEMPERATURE_OFFSET 0 // Temperature offset
+#define CONFIG_VDD_CALIBRATION 1.0F // Internal voltage calibration [only for STM32L]
+#define CONFIG_TEMPERATURE_OFFSET 0 // Temperature offset [only for STM32L]
 
-// #define CONFIG_SET_BOR
-// #define CONFIG_ERASE_EEPROM
+// #define CONFIG_SET_BOR [only for STM32L]
+// #define CONFIG_ERASE_EEPROM [only for STM32L]
 
 #endif

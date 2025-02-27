@@ -57,6 +57,8 @@ Unknown for now
 
 Pins definitions availabe at `./src/pinout.h`
 
+Please use STM32F1 definitions for STM32F100 from RS41
+
 1. GPS TX at PA10, RX at PA9, ON/OFF at PB7 (GPS TX could be also used as serial debug)
 2. RFM98 at SPI: RESET at PA3, NSS at PA4, SCK at PA5, MISO at PA6, MOSI at PA7, DIO2 at PA13, DIO1 at PA14, DIO0 at PA15
 3. SWDIO at PA13, CLK at PA14
@@ -65,16 +67,17 @@ PCB is currently unavailable to public!
 
 More information should available soon.
 
-## Build
+## Build for STM32F100
 
-build via platformio
+1. select STM32F100C8T6 env
+2. build via platformio
 
-## Flash
+## Flash for STM32F100
 
 via openocd
 
 unlock first time by `./unlock.bat`
-flash `./flash.bat`
+flash `./flash_stm32f1x.bat`
 
 or you can flash `./.pio/build/stm32f100c8t6/firmware.elf` via your favorite flasher
 
