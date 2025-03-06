@@ -39,7 +39,9 @@ void SX1278_begin(void)
 
     delay(10);
 
+#ifndef CONFIG_NO_TXCO
     SX1278_write_reg(REG_TCXO, 0x10);
+#endif
 
     delay(10);
 
@@ -107,7 +109,9 @@ void SX1278_enable_TX_direct(uint64_t *freq, uint8_t pwr, uint16_t deviation)
     else
         SX1278_set_TX_power(pwr, true);
 
+#ifndef CONFIG_NO_TXCO
     SX1278_write_reg(REG_TCXO, 0x10);
+#endif
 
     SX1278_set_TX_deviation(freq, deviation);
 }
@@ -253,7 +257,9 @@ void SX1278_init_LoRa(uint8_t sf, uint8_t bw, uint8_t cr, uint64_t frequency)
 
     SX1278_set_LoRa_parameters(sf, bw, cr);
 
+#ifndef CONFIG_NO_TXCO
     SX1278_write_reg(REG_TCXO, 0x10);
+#endif
 
     SX1278_write_reg(REG_DIO_MAPPING1, 0x40); // DIO0 = 01 (TxDone)
 

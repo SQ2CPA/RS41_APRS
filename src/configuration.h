@@ -2,7 +2,7 @@
 #define CONFIGURATION_H_
 
 #define CONFIG_APRS_CALLSIGN "N0CALL" // APRS CALLSIGN WITHOUT SSID (max 6 chars!)
-#define CONFIG_APRS_SSID 13           // APRS SSID (0-15)
+#define CONFIG_APRS_SSID 11           // APRS SSID (0-15)
 
 #define CONFIG_APRS_INTERVAL 45        // beacon interval in seconds (AFSK and LoRa at once, first AFSK then LoRa), default to 45
 #define CONFIG_APRS_INTERVAL_NOFIX 120 // beacon interval without GPS fix in seconds (AFSK and LoRa at once, first AFSK then LoRa), defaults to 120
@@ -15,6 +15,8 @@
 
 #define CONFIG_VDD_CALIBRATION 1.0F // Internal voltage calibration [only for STM32L]
 #define CONFIG_TEMPERATURE_OFFSET 0 // Temperature offset [only for STM32L]
+
+#define CONFIG_NO_TXCO // Uncomment if you don't use TXCO with SX1278
 
 // #define CONFIG_SET_BOR [only for STM32L]
 // #define CONFIG_ERASE_EEPROM [only for STM32L]
